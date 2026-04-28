@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Create Account — Dialogue Summarizer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://www.google.com/recaptcha/api.js" async defer></script>
+<style>
+  :root {
+    --bg-deep: #0a0e1a; --bg-card: #111827; --bg-elevated: #1a2234;
+    --accent: #00d4aa; --accent2: #7c3aed; --accent-glow: rgba(0,212,170,0.15);
+    --text-primary: #e2e8f0; --text-secondary: #94a3b8; --text-muted: #475569;
+    --border: rgba(255,255,255,0.07); --danger: #ef4444; --success: #10b981;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg-deep); color: var(--text-primary);
+    min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    position: relative; overflow-x: hidden; padding: 20px 0;
+  }
+  body::before {
+    content: ''; position: fixed;
+    width: 600px; height: 600px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(124,58,237,0.08) 0%, transparent 70%);
+    top: -200px; right: -200px;
+  }
+  .auth-container { width: 100%; max-width: 440px; padding: 20px; position: relative; z-index: 1; }
+  .brand { text-align: center; margin-bottom: 28px; }
+  .brand-icon { font-size: 36px; display: block; margin-bottom: 10px; filter: drop-shadow(0 0 20px var(--accent)); }
+  .brand-name { font-family: 'Space Mono', monospace; font-size: 16px; font-weight: 700; color: var(--text-primary); }
+  .auth-card {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 16px; padding: 32px;
+    box-shadow: 0 25px 50px rgba(0,0,0,0.5);
+  }
+  .auth-card h2 { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+  .auth-card .subtitle { font-size: 13px; color: var(--text-muted); margin-bottom: 24px; }
+  .form-group { margin-bottom: 16px; }
+  .form-label {
+    display: block; font-size: 11px; font-weight: 600;
+    color: var(--text-secondary); margin-bottom: 6px;
+    font-family: 'Space Mono', monospace; text-transform: uppercase; letter-spacing: 0.08em;
+  }
+  .form-input {
+    width: 100%; background: var(--bg-elevated); border: 1px solid var(--border);
+    border-radius: 8px; padding: 11px 14px; color: var(--text-primary);
+    font-size: 14px; font-family: 'DM Sans', sans-serif; outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .form-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+  .form-input::placeholder { color: var(--text-muted); }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .captcha-wrap { margin-bottom: 16px; display: flex; justify-content: center; }
+  .btn-primary {
+    width: 100%; background: linear-gradient(135deg, var(--accent), var(--accent2));
+    color: #fff; border: none; padding: 13px 24px; border-radius: 8px;
+    font-size: 15px; font-weight: 600; cursor: pointer;
+    transition: opacity 0.2s, transform 0.1s; font-family: 'DM Sans', sans-serif;
+  }
+  .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
+  .alert {
+    padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-bottom: 18px;
+    display: flex; align-items: flex-start; gap: 8px;
+  }
+  .alert-error { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); color: #fca5a5; }
+  .auth-footer { text-align: center; margin-top: 16px; font-size: 13px; color: var(--text-muted); }
+  .auth-footer a { color: var(--accent); text-decoration: none; font-weight: 600; }
+
+  /* Password strength */
+  .pw-strength { margin-top: 6px; }
+  .pw-bar { height: 3px; border-radius: 2px; background: var(--border); overflow: hidden; }
+  .pw-fill { height: 100%; width: 0; transition: width 0.3s, background 0.3s; border-radius: 2px; }
+  .pw-text { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+
+  .requirements {
+    background: var(--bg-elevated); border: 1px solid var(--border);
+    border-radius: 8px; padding: 12px; margin-top: 8px; font-size: 12px;
+  }
+  .req-item { display: flex; align-items: center; gap: 6px; color: var(--text-muted); margin: 3px 0; }
+  .req-item.met { color: var(--success); }
+  .req-icon { font-size: 10px; }
+
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+  .auth-container { animation: fadeIn 0.5s ease; }
+</style>
+</head>
+<body>
+<div class="auth-container">
+  <div class="brand">
+    <span class="brand-icon">⬡</span>
+    <div class="brand-name">DialogueSummarizer</div>
+  </div>
+
+  <div class="auth-card">
+    <h2>Create Account</h2>
+    <p class="subtitle">Join the Dialogue Summarizer platform</p>
+
+    {% if error %}
+    <div class="alert alert-error">⚠ {{ error }}</div>
+    {% endif %}
+
+    <form method="POST" action="/register/" id="reg-form">
+      {% csrf_token %}
+
+      <div class="form-group">
+        <label class="form-label">Full Name</label>
+        <input type="text" name="full_name" class="form-input" placeholder="Your full name"
+               value="{{ form.full_name.value|default:'' }}" required>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Username</label>
+          <input type="text" name="username" class="form-input" placeholder="username"
+                 value="{{ form.username.value|default:'' }}" autocomplete="username" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Email</label>
+          <input type="email" name="email" class="form-input" placeholder="you@email.com"
+                 value="{{ form.email.value|default:'' }}" autocomplete="email" required>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <input type="password" name="password" id="pw-input" class="form-input"
+               placeholder="Min 8 chars, mixed case + number + symbol"
+               autocomplete="new-password" required>
+        <div class="pw-strength">
+          <div class="pw-bar"><div class="pw-fill" id="pw-fill"></div></div>
+          <div class="pw-text" id="pw-text">Enter a password</div>
+        </div>
+        <div class="requirements" id="pw-reqs">
+          <div class="req-item" id="req-len"><span class="req-icon">○</span> At least 8 characters</div>
+          <div class="req-item" id="req-upper"><span class="req-icon">○</span> One uppercase letter</div>
+          <div class="req-item" id="req-lower"><span class="req-icon">○</span> One lowercase letter</div>
+          <div class="req-item" id="req-digit"><span class="req-icon">○</span> One number</div>
+          <div class="req-item" id="req-special"><span class="req-icon">○</span> One special character</div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Confirm Password</label>
+        <input type="password" name="confirm_password" id="pw-confirm" class="form-input"
+               placeholder="Repeat your password" autocomplete="new-password" required>
+      </div>
+
+      <div class="captcha-wrap">
+        <div class="g-recaptcha" data-sitekey="{{ recaptcha_site_key }}" data-theme="dark"></div>
+      </div>
+
+      <button type="submit" class="btn-primary">Create Account</button>
+    </form>
+
+    <div class="auth-footer">
+      Already have an account? <a href="/login/">Sign in →</a>
+    </div>
+  </div>
+</div>
+
+<script>
+  const pwInput = document.getElementById('pw-input');
+  const pwFill = document.getElementById('pw-fill');
+  const pwText = document.getElementById('pw-text');
+
+  function checkReq(id, met) {
+    const el = document.getElementById(id);
+    el.classList.toggle('met', met);
+    el.querySelector('.req-icon').textContent = met ? '●' : '○';
+  }
+
+  pwInput.addEventListener('input', () => {
+    const pw = pwInput.value;
+    const checks = {
+      len: pw.length >= 8,
+      upper: /[A-Z]/.test(pw),
+      lower: /[a-z]/.test(pw),
+      digit: /\d/.test(pw),
+      special: /[!@#$%^&*(),.?":{}|<>]/.test(pw),
+    };
+    checkReq('req-len', checks.len);
+    checkReq('req-upper', checks.upper);
+    checkReq('req-lower', checks.lower);
+    checkReq('req-digit', checks.digit);
+    checkReq('req-special', checks.special);
+
+    const score = Object.values(checks).filter(Boolean).length;
+    const widths = ['0%', '20%', '40%', '65%', '85%', '100%'];
+    const colors = ['#ef4444', '#ef4444', '#f59e0b', '#f59e0b', '#10b981', '#10b981'];
+    const labels = ['', 'Very Weak', 'Weak', 'Fair', 'Good', 'Strong'];
+    pwFill.style.width = widths[score];
+    pwFill.style.background = colors[score];
+    pwText.textContent = score > 0 ? `Strength: ${labels[score]}` : 'Enter a password';
+  });
+</script>
+</body>
+</html>

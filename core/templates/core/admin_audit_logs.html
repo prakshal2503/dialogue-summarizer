@@ -1,0 +1,71 @@
+{% extends "core/base.html" %}
+{% block title %}Audit Logs — Admin{% endblock %}
+{% block page_title %}Permanent Audit Logs{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Permanent Audit Logs <span style="font-size:16px;color:var(--text-muted);font-weight:400;">({{ total }})</span></h1>
+  <p>These logs are <strong style="color:var(--accent);">permanent and cannot be deleted</strong> — even if a user deletes their history or account.</p>
+</div>
+
+<div style="background:rgba(0,212,170,0.05);border:1px solid rgba(0,212,170,0.15);border-radius:12px;padding:14px 20px;margin-bottom:24px;font-size:13px;color:var(--text-secondary);">
+  🔒 This log captures: history deletions, account deletions, and other security events. User account snapshots are stored here permanently for compliance.
+</div>
+
+<div class="card">
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Username</th>
+          <th>Email</th>
+          <th>Action</th>
+          <th>Detail</th>
+          <th>Timestamp</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for log in logs %}
+        <tr>
+          <td style="font-weight:600;color:var(--text-primary);">@{{ log.username }}</td>
+          <td style="font-size:12px;color:var(--text-muted);">{{ log.email }}</td>
+          <td>
+            {% if log.action == 'account_deleted_by_user' %}
+              <span style="display:inline-block;padding:3px 10px;border-radius:100px;font-size:11px;font-weight:600;background:rgba(239,68,68,0.15);color:#f87171;text-transform:uppercase;">Account Deleted</span>
+            {% elif log.action == 'clear_all_history' %}
+              <span style="display:inline-block;padding:3px 10px;border-radius:100px;font-size:11px;font-weight:600;background:rgba(245,158,11,0.15);color:#fbbf24;text-transform:uppercase;">Clear History</span>
+            {% elif log.action == 'delete_history_item' %}
+              <span style="display:inline-block;padding:3px 10px;border-radius:100px;font-size:11px;font-weight:600;background:rgba(99,102,241,0.15);color:#818cf8;text-transform:uppercase;">Delete Item</span>
+            {% else %}
+              <span style="display:inline-block;padding:3px 10px;border-radius:100px;font-size:11px;font-weight:600;background:rgba(100,116,139,0.15);color:#94a3b8;text-transform:uppercase;">{{ log.action }}</span>
+            {% endif %}
+          </td>
+          <td style="font-size:12px;color:var(--text-muted);max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+            {{ log.detail|slice:":100" }}
+          </td>
+          <td style="font-family:'Space Mono',monospace;font-size:11px;color:var(--text-muted);white-space:nowrap;">
+            {{ log.timestamp|date:"M d, Y H:i:s" }}
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="5" style="text-align:center;color:var(--text-muted);padding:40px;">No audit events recorded yet.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if total_pages > 1 %}
+  <div style="display:flex;gap:8px;justify-content:center;margin-top:20px;padding-top:20px;border-top:1px solid var(--border);">
+    {% if page > 1 %}
+    <a href="?page={{ page|add:'-1' }}" style="padding:6px 12px;border-radius:6px;font-size:13px;text-decoration:none;background:var(--bg-elevated);color:var(--text-secondary);border:1px solid var(--border);">← Prev</a>
+    {% endif %}
+    <span style="padding:6px 14px;border-radius:6px;font-size:13px;background:var(--accent);color:#000;font-weight:600;">{{ page }} / {{ total_pages }}</span>
+    {% if page < total_pages %}
+    <a href="?page={{ page|add:'1' }}" style="padding:6px 12px;border-radius:6px;font-size:13px;text-decoration:none;background:var(--bg-elevated);color:var(--text-secondary);border:1px solid var(--border);">Next →</a>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

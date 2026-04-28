@@ -1,0 +1,175 @@
+{% extends "core/base.html" %}
+{% block title %}Upload File{% endblock %}
+{% block page_title %}Upload File{% endblock %}
+
+{% block extra_css %}
+<style>
+  .upload-zone {
+    border: 2px dashed var(--border);
+    border-radius: 16px;
+    padding: 48px 24px;
+    text-align: center;
+    transition: all 0.3s;
+    cursor: pointer;
+    background: var(--bg-elevated);
+    position: relative;
+  }
+  .upload-zone.dragover {
+    border-color: var(--accent);
+    background: var(--accent-glow);
+  }
+  .upload-zone .upload-icon { font-size: 48px; opacity: 0.5; display: block; margin-bottom: 16px; }
+  .upload-zone .upload-title { font-size: 18px; font-weight: 600; color: var(--text-primary); }
+  .upload-zone .upload-sub { font-size: 13px; color: var(--text-muted); margin-top: 6px; }
+  .allowed-types {
+    display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-top: 16px;
+  }
+  .type-badge {
+    padding: 3px 10px; border-radius: 100px;
+    background: rgba(0,212,170,0.1); border: 1px solid rgba(0,212,170,0.2);
+    color: var(--accent); font-size: 11px; font-family: 'Space Mono', monospace;
+  }
+  .file-input-wrap { margin-top: 16px; }
+  #selected-file {
+    margin-top: 12px; padding: 10px 14px;
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 8px; font-size: 13px; color: var(--text-secondary);
+    display: none;
+  }
+
+  .hash-display {
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+    color: var(--accent);
+    word-break: break-all;
+    margin-top: 12px;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Upload File</h1>
+  <p>Upload dialogue files for processing. Files are SHA-256 hashed and stored securely.</p>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 360px;gap:24px;">
+  <div>
+    <div class="card">
+      {% if error %}
+      <div class="alert alert-error">⚠ {{ error }}</div>
+      {% endif %}
+      {% if success_msg %}
+      <div class="alert alert-success">✓ {{ success_msg }}</div>
+      {% endif %}
+
+      <form method="POST" enctype="multipart/form-data" id="upload-form">
+        {% csrf_token %}
+
+        <div class="upload-zone" id="drop-zone">
+          <span class="upload-icon">⬆</span>
+          <div class="upload-title">Drop files here or click to browse</div>
+          <div class="upload-sub">Any file type accepted — no size limit</div>
+          <div class="allowed-types">
+            <span class="type-badge">.txt</span>
+            <span class="type-badge">.pdf</span>
+            <span class="type-badge">.docx</span>
+            <span class="type-badge">.xlsx</span>
+            <span class="type-badge">.csv</span>
+            <span class="type-badge">.json</span>
+            <span class="type-badge">.pptx</span>
+            <span class="type-badge">+ more</span>
+          </div>
+          <div class="file-input-wrap">
+            <input type="file" name="file" id="file-input" accept="*/*"
+                   style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;">
+          </div>
+        </div>
+        <div id="selected-file">📄 <span id="file-name"></span> — <span id="file-size"></span></div>
+
+        <div class="form-group" style="margin-top:18px;">
+          <label class="form-label">Description (optional)</label>
+          <input type="text" name="description" class="form-input"
+                 placeholder="Brief description of this file..." maxlength="200">
+        </div>
+
+        <button type="submit" class="btn-primary" style="margin-top:4px;">
+          ⬆ Upload File
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Sidebar info -->
+  <div>
+    <div class="card">
+      <div class="card-title" style="margin-bottom:16px;">Security Info</div>
+      <div style="font-size:13px;color:var(--text-secondary);line-height:1.8;">
+        <p>🔐 <strong>SHA-256 Hashing</strong><br>Every file is hashed with SHA-256 upon upload for integrity verification.</p>
+        <br>
+        <p>🔒 <strong>Secure Storage</strong><br>Files are stored with hashed filenames to prevent enumeration.</p>
+        <br>
+        <p>📜 <strong>Audit Trail</strong><br>All uploads are logged with timestamp and hash for full traceability.</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title" style="margin-bottom:16px;">Recent Uploads</div>
+      {% for item in history %}
+      <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);">
+        <span style="font-size:14px;">📄</span>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:12px;color:var(--text-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ item.filename }}</div>
+          <div style="font-size:10px;color:var(--text-muted);font-family:'Space Mono',monospace;">{{ item.file_hash|slice:":12" }}...</div>
+        </div>
+      </div>
+      {% empty %}
+      <p style="font-size:12px;color:var(--text-muted);">No uploads yet.</p>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  const fileInput = document.getElementById('file-input');
+  const selectedFile = document.getElementById('selected-file');
+  const fileName = document.getElementById('file-name');
+  const fileSize = document.getElementById('file-size');
+  const dropZone = document.getElementById('drop-zone');
+
+  function formatBytes(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024*1024) return (bytes/1024).toFixed(1) + ' KB';
+    return (bytes/1024/1024).toFixed(1) + ' MB';
+  }
+
+  fileInput.addEventListener('change', () => {
+    const f = fileInput.files[0];
+    if (f) {
+      fileName.textContent = f.name;
+      fileSize.textContent = formatBytes(f.size);
+      selectedFile.style.display = 'block';
+    }
+  });
+
+  ['dragover','dragenter'].forEach(e => {
+    dropZone.addEventListener(e, ev => { ev.preventDefault(); dropZone.classList.add('dragover'); });
+  });
+  ['dragleave','drop'].forEach(e => {
+    dropZone.addEventListener(e, ev => { ev.preventDefault(); dropZone.classList.remove('dragover'); });
+  });
+  dropZone.addEventListener('drop', ev => {
+    const dt = ev.dataTransfer;
+    if (dt.files.length) {
+      fileInput.files = dt.files;
+      fileInput.dispatchEvent(new Event('change'));
+    }
+  });
+</script>
+{% endblock %}

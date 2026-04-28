@@ -1,0 +1,151 @@
+{% extends "core/base.html" %}
+{% block title %}Admin Dashboard{% endblock %}
+{% block page_title %}Admin Control Panel{% endblock %}
+
+{% block extra_css %}
+<style>
+  .admin-header {
+    background: linear-gradient(135deg, rgba(220,38,38,0.1) 0%, rgba(124,58,237,0.08) 100%);
+    border: 1px solid rgba(220,38,38,0.2);
+    border-radius: 16px;
+    padding: 24px 28px;
+    margin-bottom: 28px;
+    display: flex; align-items: center; gap: 16px;
+  }
+  .admin-badge {
+    background: rgba(220,38,38,0.15);
+    border: 1px solid rgba(220,38,38,0.3);
+    color: #f87171;
+    padding: 4px 12px;
+    border-radius: 100px;
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+  .chart-placeholder {
+    height: 120px;
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    padding-top: 20px;
+  }
+  .chart-bar {
+    flex: 1;
+    background: linear-gradient(to top, var(--accent), var(--accent2));
+    border-radius: 4px 4px 0 0;
+    opacity: 0.7;
+    transition: opacity 0.2s;
+    min-height: 4px;
+  }
+  .chart-bar:hover { opacity: 1; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="admin-header">
+  <div>
+    <span class="admin-badge">Admin</span>
+    <h1 style="font-size:22px;font-weight:700;margin-top:8px;color:var(--text-primary);">System Overview</h1>
+    <p style="font-size:13px;color:var(--text-secondary);margin-top:4px;">Monitor platform usage and manage users</p>
+  </div>
+</div>
+
+<!-- Stats -->
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="stat-icon">◎</div>
+    <div class="stat-label">Total Users</div>
+    <div class="stat-value">{{ stats.total_users }}</div>
+    <div class="stat-sub">{{ stats.active_users }} active</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon">⬆</div>
+    <div class="stat-label">Total Uploads</div>
+    <div class="stat-value">{{ stats.total_uploads }}</div>
+    <div class="stat-sub">all time</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon">◈</div>
+    <div class="stat-label">Summaries</div>
+    <div class="stat-value">{{ stats.total_summaries }}</div>
+    <div class="stat-sub">generated</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon">◷</div>
+    <div class="stat-label">Today's Activity</div>
+    <div class="stat-value">{{ stats.today_uploads }}</div>
+    <div class="stat-sub">uploads today</div>
+  </div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
+
+  <!-- Recent Users -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">Recent Users</div>
+      <a href="/admin/users/" class="btn-secondary" style="font-size:12px;padding:6px 14px;">Manage All</a>
+    </div>
+    {% if recent_users %}
+    <table>
+      <thead>
+        <tr>
+          <th>User</th>
+          <th>Status</th>
+          <th>Joined</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for u in recent_users %}
+        <tr>
+          <td>
+            <div style="font-weight:600;color:var(--text-primary);font-size:13px;">{{ u.profile.full_name|default:u.username }}</div>
+            <div style="font-size:11px;color:var(--text-muted);">@{{ u.username }}</div>
+          </td>
+          <td>
+            <span class="status-badge {% if u.is_active %}status-active{% else %}status-inactive{% endif %}">
+              {% if u.is_active %}● Active{% else %}○ Inactive{% endif %}
+            </span>
+          </td>
+          <td style="font-size:12px;color:var(--text-muted);">{{ u.created_at|date:"M d, Y" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p style="color:var(--text-muted);font-size:14px;text-align:center;padding:24px;">No users yet.</p>
+    {% endif %}
+  </div>
+
+  <!-- Recent Activity -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">Recent Activity</div>
+      <a href="/admin/activity/" class="btn-secondary" style="font-size:12px;padding:6px 14px;">View All</a>
+    </div>
+    {% if recent_activity %}
+    <table>
+      <thead>
+        <tr><th>File</th><th>Action</th><th>Date</th></tr>
+      </thead>
+      <tbody>
+        {% for item in recent_activity %}
+        <tr>
+          <td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;">{{ item.filename }}</td>
+          <td>
+            <span class="history-badge badge-{{ item.action }}" style="display:inline-block;padding:3px 8px;border-radius:100px;font-size:10px;font-weight:600;text-transform:uppercase;">{{ item.action }}</span>
+          </td>
+          <td style="font-size:11px;color:var(--text-muted);">{{ item.created_at|date:"M d, H:i" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p style="color:var(--text-muted);font-size:14px;text-align:center;padding:24px;">No activity yet.</p>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}

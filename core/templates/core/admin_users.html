@@ -1,0 +1,86 @@
+{% extends "core/base.html" %}
+{% block title %}Manage Users — Admin{% endblock %}
+{% block page_title %}User Management{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>All Users <span style="font-size:16px;color:var(--text-muted);font-weight:400;">({{ total }})</span></h1>
+  <p>Manage registered user accounts — activate, deactivate, or remove users.</p>
+</div>
+
+<div class="card">
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>User</th>
+          <th>Email</th>
+          <th>Uploads</th>
+          <th>Summaries</th>
+          <th>Status</th>
+          <th>Joined</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for u in users %}
+        <tr>
+          <td>
+            <div style="display:flex;align-items:center;gap:10px;">
+              <div style="width:30px;height:30px;border-radius:50%;background:{{ u.profile.avatar_color|default:'#7c3aed' }};display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;flex-shrink:0;">
+                {{ u.profile.full_name|first|upper }}
+              </div>
+              <div>
+                <div style="font-weight:600;font-size:13px;color:var(--text-primary);">{{ u.profile.full_name|default:u.username }}</div>
+                <div style="font-size:11px;color:var(--text-muted);">@{{ u.username }}</div>
+              </div>
+            </div>
+          </td>
+          <td style="font-size:12px;">{{ u.email }}</td>
+          <td style="font-family:'Space Mono',monospace;font-size:12px;">{{ u.stats.total_uploads|default:0 }}</td>
+          <td style="font-family:'Space Mono',monospace;font-size:12px;">{{ u.stats.total_summaries|default:0 }}</td>
+          <td>
+            <span class="status-badge {% if u.is_active %}status-active{% else %}status-inactive{% endif %}">
+              {% if u.is_active %}● Active{% else %}○ Inactive{% endif %}
+            </span>
+          </td>
+          <td style="font-size:12px;color:var(--text-muted);">{{ u.created_at|date:"M d, Y" }}</td>
+          <td>
+            <div style="display:flex;gap:6px;">
+              <form method="POST" action="/admin/users/{{ u.id }}/toggle/" style="display:inline;">
+                {% csrf_token %}
+                <button type="submit" class="btn-success" style="padding:5px 10px;font-size:11px;">
+                  {% if u.is_active %}Deactivate{% else %}Activate{% endif %}
+                </button>
+              </form>
+              <form method="POST" action="/admin/users/{{ u.id }}/delete/"
+                    onsubmit="return confirm('Delete user {{ u.username }}? This cannot be undone.');" style="display:inline;">
+                {% csrf_token %}
+                <button type="submit" class="btn-danger" style="padding:5px 10px;font-size:11px;">Delete</button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="7" style="text-align:center;color:var(--text-muted);padding:40px;">No users registered yet.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Pagination -->
+  {% if total_pages > 1 %}
+  <div style="display:flex;gap:8px;justify-content:center;margin-top:20px;padding-top:20px;border-top:1px solid var(--border);">
+    {% for p in total_pages|rjust:total_pages %}
+    <a href="?page={{ forloop.counter }}"
+       style="padding:6px 12px;border-radius:6px;font-size:13px;text-decoration:none;
+              {% if forloop.counter == page %}background:var(--accent);color:#000;font-weight:600;{% else %}background:var(--bg-elevated);color:var(--text-secondary);border:1px solid var(--border);{% endif %}">
+      {{ forloop.counter }}
+    </a>
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

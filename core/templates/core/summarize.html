@@ -1,0 +1,491 @@
+{% extends "core/base.html" %}
+{% block title %}Summarize Dialogue{% endblock %}
+{% block page_title %}Dialogue Summarizer{% endblock %}
+
+{% block extra_css %}
+<style>
+  /* Tab switcher */
+  .input-tabs {
+    display: flex;
+    gap: 0;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 4px;
+    margin-bottom: 20px;
+    width: fit-content;
+  }
+  .tab-btn {
+    padding: 9px 22px;
+    border-radius: 7px;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: 'DM Sans', sans-serif;
+    display: flex; align-items: center; gap: 7px;
+  }
+  .tab-btn.active {
+    background: var(--bg-card);
+    color: var(--accent);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  }
+  .tab-btn:hover:not(.active) { color: var(--text-secondary); }
+
+  /* Input panels */
+  .input-panel { display: none; }
+  .input-panel.active { display: block; }
+
+  /* Editor */
+  .editor-area {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .editor-toolbar {
+    background: var(--bg-card);
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .editor-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px; color: var(--text-muted);
+    text-transform: uppercase; letter-spacing: 0.1em;
+  }
+  .char-count { font-family: 'Space Mono', monospace; font-size: 11px; color: var(--text-muted); }
+  textarea.dialogue-input {
+    width: 100%; background: transparent; border: none;
+    padding: 16px; color: var(--text-primary);
+    font-size: 14px; font-family: 'DM Sans', sans-serif;
+    resize: vertical; min-height: 220px; outline: none; line-height: 1.7;
+  }
+
+  /* PDF Upload zone */
+  .pdf-drop-zone {
+    border: 2px dashed var(--border);
+    border-radius: 12px;
+    padding: 40px 24px;
+    text-align: center;
+    transition: all 0.3s;
+    cursor: pointer;
+    background: var(--bg-elevated);
+    position: relative;
+    min-height: 200px;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 12px;
+  }
+  .pdf-drop-zone.dragover {
+    border-color: var(--accent);
+    background: var(--accent-glow);
+  }
+  .pdf-drop-zone.has-file {
+    border-color: var(--success);
+    background: rgba(16,185,129,0.05);
+  }
+  .pdf-icon { font-size: 52px; opacity: 0.6; }
+  .pdf-title { font-size: 17px; font-weight: 600; color: var(--text-primary); }
+  .pdf-sub { font-size: 13px; color: var(--text-muted); }
+  .file-types {
+    display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-top: 8px;
+  }
+  .ftype {
+    padding: 3px 10px; border-radius: 100px;
+    background: rgba(0,212,170,0.1); border: 1px solid rgba(0,212,170,0.2);
+    color: var(--accent); font-size: 11px; font-family: 'Space Mono', monospace;
+  }
+  .file-selected-info {
+    display: none;
+    background: rgba(16,185,129,0.1);
+    border: 1px solid rgba(16,185,129,0.25);
+    border-radius: 10px;
+    padding: 14px 18px;
+    margin-top: 14px;
+    display: none;
+    align-items: center;
+    gap: 12px;
+  }
+  .file-selected-info.show { display: flex; }
+  .file-selected-info .fi-icon { font-size: 28px; }
+  .file-selected-info .fi-name { font-weight: 600; font-size: 14px; color: var(--text-primary); }
+  .file-selected-info .fi-size { font-size: 12px; color: var(--text-muted); font-family: 'Space Mono', monospace; }
+
+  /* Extracted text preview */
+  .extracted-preview {
+    background: rgba(124,58,237,0.05);
+    border: 1px solid rgba(124,58,237,0.2);
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin-top: 14px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    font-family: 'Space Mono', monospace;
+    line-height: 1.6;
+    max-height: 120px;
+    overflow-y: auto;
+  }
+  .extracted-preview .ep-label {
+    font-size: 10px; color: var(--accent);
+    text-transform: uppercase; letter-spacing: 0.1em;
+    margin-bottom: 6px; display: block;
+  }
+
+  /* Summary output */
+  .summary-output {
+    background: rgba(0,212,170,0.05);
+    border: 1px solid rgba(0,212,170,0.2);
+    border-radius: 12px;
+    padding: 22px;
+    margin-top: 20px;
+    animation: fadeIn 0.4s ease;
+  }
+  .summary-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 14px;
+  }
+  .summary-title {
+    display: flex; align-items: center; gap: 8px;
+    font-family: 'Space Mono', monospace;
+    font-size: 11px; color: var(--accent);
+    text-transform: uppercase; letter-spacing: 0.1em;
+  }
+  .summary-text {
+    font-size: 15px; line-height: 1.9;
+    color: var(--text-primary); white-space: pre-wrap;
+  }
+  .summary-actions { display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
+
+  .model-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 3px 10px; border-radius: 100px;
+    background: rgba(124,58,237,0.15); border: 1px solid rgba(124,58,237,0.3);
+    color: #a78bfa;
+    font-size: 10px; font-family: 'Space Mono', monospace;
+    text-transform: uppercase; letter-spacing: 0.05em;
+  }
+
+  /* Processing indicator */
+  .processing-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.6);
+    z-index: 500;
+    align-items: center; justify-content: center;
+    flex-direction: column; gap: 16px;
+  }
+  .processing-overlay.show { display: flex; }
+  .spinner {
+    width: 48px; height: 48px;
+    border: 3px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .processing-text { color: var(--text-primary); font-size: 15px; font-weight: 600; }
+  .processing-sub { color: var(--text-muted); font-size: 12px; }
+
+  @keyframes fadeIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Dialogue Summarization</h1>
+  <p>Upload a PDF/file or paste text — the AI model will generate a summary.</p>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 300px;gap:24px;">
+  <div>
+    <div class="card">
+      {% if error %}
+      <div class="alert alert-error">⚠ {{ error }}</div>
+      {% endif %}
+
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;">
+        <div class="card-title">Input Source</div>
+        <span class="model-badge">⬡ AI Model Ready</span>
+      </div>
+
+      <!-- Tab Switcher -->
+      <div class="input-tabs">
+        <button class="tab-btn {% if input_mode != 'file' %}active{% endif %}"
+                onclick="switchTab('text')" type="button" id="tab-text">
+          ✏ Type / Paste Text
+        </button>
+        <button class="tab-btn {% if input_mode == 'file' %}active{% endif %}"
+                onclick="switchTab('file')" type="button" id="tab-file">
+          📄 Upload PDF / File
+        </button>
+      </div>
+
+      <form method="POST" enctype="multipart/form-data" id="summarize-form">
+        {% csrf_token %}
+        <input type="hidden" name="input_mode" id="input-mode-field"
+               value="{{ input_mode|default:'text' }}">
+
+        <!-- ── TEXT INPUT PANEL ── -->
+        <div class="input-panel {% if input_mode != 'file' %}active{% endif %}" id="panel-text">
+          <div class="editor-area">
+            <div class="editor-toolbar">
+              <span class="editor-label">Dialogue Text</span>
+              <span class="char-count"><span id="char-count">0</span> characters</span>
+            </div>
+            <textarea name="dialogue_text" id="dialogue-input" class="dialogue-input"
+                      placeholder="Paste your dialogue here...
+
+Example:
+Doctor: How have you been feeling lately?
+Patient: I've had persistent headaches for two weeks.
+Doctor: Any other symptoms — nausea, blurred vision?
+Patient: Some nausea but no vision issues.
+Doctor: Let's run some tests to be safe.">{{ dialogue_text }}</textarea>
+          </div>
+        </div>
+
+        <!-- ── FILE UPLOAD PANEL ── -->
+        <div class="input-panel {% if input_mode == 'file' %}active{% endif %}" id="panel-file">
+          <div class="pdf-drop-zone" id="drop-zone">
+            <div class="pdf-icon" id="drop-icon">📄</div>
+            <div class="pdf-title" id="drop-title">Drop your file here or click to browse</div>
+            <div class="pdf-sub" id="drop-sub">Any file type — PDF, DOCX, TXT, XLSX, PPTX, CSV, and more — no size limit</div>
+            <div class="file-types">
+              <span class="ftype">PDF</span>
+              <span class="ftype">TXT</span>
+              <span class="ftype">DOCX</span>
+              <span class="ftype">XLSX</span>
+              <span class="ftype">PPTX</span>
+              <span class="ftype">CSV</span>
+              <span class="ftype">JSON</span>
+              <span class="ftype">+ more</span>
+            </div>
+            <input type="file" name="input_file" id="file-input"
+                   accept="*/*"
+                   style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;">
+          </div>
+
+          <!-- File selected info -->
+          <div class="file-selected-info" id="file-info">
+            <span class="fi-icon" id="fi-icon">📄</span>
+            <div>
+              <div class="fi-name" id="fi-name">filename.pdf</div>
+              <div class="fi-size" id="fi-size">0 KB</div>
+            </div>
+            <span style="margin-left:auto;color:var(--success);font-size:20px;">✓</span>
+          </div>
+
+          <!-- Extracted text preview (shown after processing) -->
+          {% if extracted_text and input_mode == 'file' %}
+          <div class="extracted-preview">
+            <span class="ep-label">📝 Extracted Text Preview</span>
+            {{ extracted_text }}{% if extracted_text|length >= 500 %}...{% endif %}
+          </div>
+          {% endif %}
+        </div>
+
+        <button type="submit" class="btn-primary" style="margin-top:18px;" id="submit-btn">
+          ◈ Generate Summary
+        </button>
+      </form>
+
+      <!-- Summary Output -->
+      {% if summary %}
+      <div class="summary-output">
+        <div class="summary-header">
+          <div class="summary-title">
+            <span>◈</span> AI Generated Summary
+            {% if input_filename and input_filename != 'dialogue_text' %}
+            <span style="color:var(--text-muted);font-size:10px;">from {{ input_filename }}</span>
+            {% endif %}
+          </div>
+        </div>
+        <div class="summary-text">{{ summary }}</div>
+        <div class="summary-actions">
+          <button onclick="copySummary()" class="btn-secondary" style="font-size:12px;padding:7px 16px;">
+            📋 Copy Summary
+          </button>
+          <button onclick="downloadSummary()" class="btn-secondary" style="font-size:12px;padding:7px 16px;">
+            ⬇ Download .txt
+          </button>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Right Sidebar -->
+  <div>
+    <div class="card">
+      <div class="card-title" style="margin-bottom:16px;">How It Works</div>
+      <div style="font-size:13px;color:var(--text-secondary);line-height:2;">
+        <p>📄 <strong>Upload PDF</strong> — text is extracted automatically</p>
+        <p>✏ <strong>Or paste text</strong> — directly into the editor</p>
+        <p>⬡ <strong>AI processes</strong> — your cloud ML model runs</p>
+        <p>📋 <strong>Get summary</strong> — copy or download result</p>
+        <p>💾 <strong>Auto-saved</strong> — added to your history</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title" style="margin-bottom:12px;">🔌 Connect Your Model</div>
+      <div style="font-size:12px;color:var(--text-muted);line-height:1.8;">
+        Open <code style="background:var(--bg-elevated);padding:2px 6px;border-radius:4px;color:var(--accent);">core/views.py</code> and replace the <code style="background:var(--bg-elevated);padding:2px 6px;border-radius:4px;color:var(--accent);">_generate_summary()</code> function with your model API.
+        <br><br>
+        The function receives the <strong>extracted text</strong> as a string and must return a <strong>summary string</strong>.
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title" style="margin-bottom:14px;">Recent Summaries</div>
+      {% for item in history %}
+      {% if item.action == 'summarize' %}
+      <div style="padding:8px 0;border-bottom:1px solid var(--border);">
+        <div style="font-size:12px;color:var(--text-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+          📄 {{ item.filename }}
+        </div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:3px;">
+          {{ item.created_at|date:"M d, H:i" }}
+        </div>
+      </div>
+      {% endif %}
+      {% empty %}
+      <p style="font-size:12px;color:var(--text-muted);">No summaries yet.</p>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<!-- Processing Overlay -->
+<div class="processing-overlay" id="processing-overlay">
+  <div class="spinner"></div>
+  <div class="processing-text">Processing your input...</div>
+  <div class="processing-sub" id="processing-sub-text">Extracting text and generating summary</div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  // ── Tab Switching ──────────────────────────────────────────
+  function switchTab(mode) {
+    document.getElementById('input-mode-field').value = mode;
+    document.getElementById('panel-text').classList.toggle('active', mode === 'text');
+    document.getElementById('panel-file').classList.toggle('active', mode === 'file');
+    document.getElementById('tab-text').classList.toggle('active', mode === 'text');
+    document.getElementById('tab-file').classList.toggle('active', mode === 'file');
+  }
+
+  // ── Character counter ──────────────────────────────────────
+  const input = document.getElementById('dialogue-input');
+  const counter = document.getElementById('char-count');
+  if (input) {
+    input.addEventListener('input', () => {
+      counter.textContent = input.value.length.toLocaleString();
+    });
+    counter.textContent = input.value.length.toLocaleString();
+  }
+
+  // ── File input handling ────────────────────────────────────
+  const fileInput = document.getElementById('file-input');
+  const dropZone = document.getElementById('drop-zone');
+  const fileInfo = document.getElementById('file-info');
+
+  function formatBytes(b) {
+    if (b < 1024) return b + ' B';
+    if (b < 1024*1024) return (b/1024).toFixed(1) + ' KB';
+    return (b/1024/1024).toFixed(1) + ' MB';
+  }
+
+  function getFileIcon(name) {
+    const ext = name.split('.').pop().toLowerCase();
+    const icons = {
+      pdf: '📕', txt: '📝', md: '📝', rst: '📝', log: '📝',
+      docx: '📘', doc: '📘', rtf: '📘',
+      csv: '📊', tsv: '📊', xlsx: '📊', xls: '📊', ods: '📊',
+      pptx: '📙', ppt: '📙',
+      json: '📋', jsonl: '📋', xml: '📋',
+      html: '🌐', htm: '🌐',
+    };
+    return icons[ext] || '📄';
+  }
+
+  fileInput.addEventListener('change', () => {
+    const f = fileInput.files[0];
+    if (f) {
+      document.getElementById('fi-icon').textContent = getFileIcon(f.name);
+      document.getElementById('fi-name').textContent = f.name;
+      document.getElementById('fi-size').textContent = formatBytes(f.size);
+      fileInfo.classList.add('show');
+      dropZone.classList.add('has-file');
+      document.getElementById('drop-icon').textContent = getFileIcon(f.name);
+      document.getElementById('drop-title').textContent = f.name;
+      document.getElementById('drop-sub').textContent = formatBytes(f.size) + ' — ready to process';
+    }
+  });
+
+  // Drag and drop
+  ['dragover','dragenter'].forEach(e => {
+    dropZone.addEventListener(e, ev => { ev.preventDefault(); dropZone.classList.add('dragover'); });
+  });
+  ['dragleave','drop'].forEach(e => {
+    dropZone.addEventListener(e, ev => { ev.preventDefault(); dropZone.classList.remove('dragover'); });
+  });
+  dropZone.addEventListener('drop', ev => {
+    const dt = ev.dataTransfer;
+    if (dt.files.length) {
+      fileInput.files = dt.files;
+      fileInput.dispatchEvent(new Event('change'));
+    }
+  });
+
+  // ── Form submit with loading overlay ──────────────────────
+  document.getElementById('summarize-form').addEventListener('submit', function() {
+    const mode = document.getElementById('input-mode-field').value;
+    const overlay = document.getElementById('processing-overlay');
+    const subText = document.getElementById('processing-sub-text');
+
+    if (mode === 'file') {
+      const f = fileInput.files[0];
+      if (f) {
+        const ext = f.name.split('.').pop().toLowerCase();
+        subText.textContent = ext === 'pdf'
+          ? 'Extracting text from PDF and generating summary...'
+          : `Reading ${ext.toUpperCase()} file and generating summary...`;
+      }
+    } else {
+      subText.textContent = 'Analyzing dialogue and generating summary...';
+    }
+
+    overlay.classList.add('show');
+    document.getElementById('submit-btn').disabled = true;
+  });
+
+  // ── Copy summary ───────────────────────────────────────────
+  function copySummary() {
+    const text = document.querySelector('.summary-text')?.textContent;
+    if (text) {
+      navigator.clipboard.writeText(text).then(() => {
+        const btn = event.target;
+        btn.textContent = '✓ Copied!';
+        setTimeout(() => btn.textContent = '📋 Copy Summary', 2000);
+      });
+    }
+  }
+
+  // ── Download summary as .txt ───────────────────────────────
+  function downloadSummary() {
+    const text = document.querySelector('.summary-text')?.textContent;
+    if (text) {
+      const blob = new Blob([text], { type: 'text/plain' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'summary_' + new Date().toISOString().slice(0,10) + '.txt';
+      a.click();
+    }
+  }
+</script>
+{% endblock %}

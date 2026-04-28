@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% block title %}Dialogue Summarizer{% endblock %}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-deep: #0a0e1a;
+    --bg-card: #111827;
+    --bg-sidebar: #0d1117;
+    --bg-elevated: #1a2234;
+    --accent: #00d4aa;
+    --accent-dim: #00b892;
+    --accent-glow: rgba(0, 212, 170, 0.15);
+    --accent2: #7c3aed;
+    --accent2-dim: #6d28d9;
+    --text-primary: #e2e8f0;
+    --text-secondary: #94a3b8;
+    --text-muted: #475569;
+    --border: rgba(255,255,255,0.07);
+    --danger: #ef4444;
+    --warning: #f59e0b;
+    --success: #10b981;
+    --sidebar-w: 260px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg-deep);
+    color: var(--text-primary);
+    min-height: 100vh;
+    display: flex;
+  }
+
+  /* ── SIDEBAR ── */
+  .sidebar {
+    width: var(--sidebar-w);
+    background: var(--bg-sidebar);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    top: 0; left: 0;
+    height: 100vh;
+    z-index: 100;
+    overflow-y: auto;
+  }
+
+  .sidebar-logo {
+    padding: 24px 20px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .sidebar-logo .logo-text {
+    font-family: 'Space Mono', monospace;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .sidebar-logo .logo-sub {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 3px;
+    letter-spacing: 0.05em;
+  }
+
+  .sidebar-user {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .user-avatar {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    background: var(--accent2);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 14px;
+    color: #fff;
+    flex-shrink: 0;
+  }
+  .user-info .user-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    max-width: 160px;
+  }
+  .user-info .user-role {
+    font-size: 11px;
+    color: var(--accent);
+    font-family: 'Space Mono', monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .sidebar-nav {
+    padding: 12px 0;
+    flex: 1;
+  }
+  .nav-section-label {
+    font-size: 10px;
+    font-family: 'Space Mono', monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--text-muted);
+    padding: 12px 20px 6px;
+  }
+  .nav-link {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 20px;
+    color: var(--text-secondary);
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.2s;
+    border-left: 3px solid transparent;
+    cursor: pointer;
+  }
+  .nav-link:hover {
+    background: var(--accent-glow);
+    color: var(--accent);
+    border-left-color: var(--accent);
+  }
+  .nav-link.active {
+    background: var(--accent-glow);
+    color: var(--accent);
+    border-left-color: var(--accent);
+  }
+  .nav-icon { font-size: 16px; width: 20px; text-align: center; }
+
+  /* History sidebar section */
+  .history-section {
+    border-top: 1px solid var(--border);
+    padding: 12px 0;
+  }
+  .history-item {
+    padding: 8px 20px;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .history-item:hover { background: var(--bg-elevated); }
+  .history-item .h-name {
+    font-size: 12px;
+    color: var(--text-primary);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    max-width: 200px;
+  }
+  .history-item .h-meta {
+    font-size: 10px;
+    color: var(--text-muted);
+    font-family: 'Space Mono', monospace;
+    margin-top: 2px;
+  }
+  .history-badge {
+    display: inline-block;
+    padding: 1px 6px;
+    border-radius: 10px;
+    font-size: 9px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-right: 4px;
+  }
+  .badge-upload { background: rgba(99,102,241,0.2); color: #818cf8; }
+  .badge-summarize { background: rgba(0,212,170,0.15); color: var(--accent); }
+  .badge-fetch { background: rgba(245,158,11,0.15); color: #fbbf24; }
+
+  /* ── MAIN CONTENT ── */
+  .main-content {
+    margin-left: var(--sidebar-w);
+    flex: 1;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .topbar {
+    background: var(--bg-card);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky; top: 0;
+    z-index: 50;
+  }
+  .topbar-title {
+    font-family: 'Space Mono', monospace;
+    font-size: 13px;
+    color: var(--text-secondary);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .topbar-actions { display: flex; gap: 12px; align-items: center; }
+  .topbar-time {
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+  .btn-logout {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.2s;
+    font-family: 'DM Sans', sans-serif;
+  }
+  .btn-logout:hover { border-color: var(--danger); color: var(--danger); }
+
+  .page-body {
+    padding: 32px;
+    flex: 1;
+  }
+
+  /* ── CARDS ── */
+  .card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 24px;
+  }
+  .card-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 20px;
+  }
+  .card-title {
+    font-family: 'Space Mono', monospace;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-primary);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+
+  /* ── STAT CARDS ── */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  .stat-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+  }
+  .stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+  }
+  .stat-label {
+    font-size: 11px;
+    font-family: 'Space Mono', monospace;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+  .stat-value {
+    font-size: 32px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 8px 0 4px;
+    font-family: 'Space Mono', monospace;
+  }
+  .stat-sub { font-size: 12px; color: var(--text-secondary); }
+  .stat-icon {
+    position: absolute;
+    top: 16px; right: 16px;
+    font-size: 28px;
+    opacity: 0.15;
+  }
+
+  /* ── FORMS ── */
+  .form-input {
+    width: 100%;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+    color: var(--text-primary);
+    font-size: 14px;
+    font-family: 'DM Sans', sans-serif;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    outline: none;
+  }
+  .form-input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-glow);
+  }
+  .form-label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-bottom: 6px;
+    font-family: 'Space Mono', monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .form-group { margin-bottom: 18px; }
+
+  .btn-primary {
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    color: #fff;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.2s, transform 0.1s;
+    width: 100%;
+    font-family: 'DM Sans', sans-serif;
+    letter-spacing: 0.02em;
+  }
+  .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
+  .btn-primary:active { transform: translateY(0); }
+
+  .btn-secondary {
+    background: transparent;
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: 'DM Sans', sans-serif;
+    text-decoration: none;
+    display: inline-block;
+  }
+  .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+
+  .btn-danger {
+    background: rgba(239,68,68,0.1);
+    color: var(--danger);
+    border: 1px solid rgba(239,68,68,0.3);
+    padding: 7px 14px;
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+    transition: all 0.2s;
+    text-decoration: none;
+    display: inline-block;
+  }
+  .btn-danger:hover { background: rgba(239,68,68,0.2); }
+
+  .btn-success {
+    background: rgba(16,185,129,0.1);
+    color: var(--success);
+    border: 1px solid rgba(16,185,129,0.3);
+    padding: 7px 14px;
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+    transition: all 0.2s;
+    text-decoration: none;
+    display: inline-block;
+  }
+
+  /* ── ALERTS ── */
+  .alert {
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-size: 14px;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .alert-error { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); color: #fca5a5; }
+  .alert-success { background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.3); color: #6ee7b7; }
+  .alert-info { background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.3); color: #93c5fd; }
+
+  /* ── TABLE ── */
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th {
+    text-align: left;
+    padding: 10px 14px;
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--border);
+  }
+  td {
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text-secondary);
+    vertical-align: middle;
+  }
+  tr:hover td { background: var(--bg-elevated); }
+  tr:last-child td { border-bottom: none; }
+
+  /* ── STATUS BADGES ── */
+  .status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 10px;
+    border-radius: 100px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .status-active { background: rgba(16,185,129,0.15); color: var(--success); }
+  .status-inactive { background: rgba(239,68,68,0.1); color: var(--danger); }
+
+  /* ── PAGE HEADER ── */
+  .page-header {
+    margin-bottom: 28px;
+  }
+  .page-header h1 {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+  }
+  .page-header p { font-size: 14px; color: var(--text-secondary); }
+
+  /* ── SCROLLBAR ── */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg-deep); }
+  ::-webkit-scrollbar-thumb { background: var(--text-muted); border-radius: 3px; }
+
+  /* ── ANIMATIONS ── */
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .fade-in { animation: fadeIn 0.4s ease forwards; }
+
+  @keyframes pulse-glow {
+    0%, 100% { box-shadow: 0 0 0 0 var(--accent-glow); }
+    50% { box-shadow: 0 0 20px 4px var(--accent-glow); }
+  }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    .sidebar { transform: translateX(-100%); transition: transform 0.3s; }
+    .sidebar.open { transform: translateX(0); }
+    .main-content { margin-left: 0; }
+    .page-body { padding: 16px; }
+    .stats-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+{% block extra_css %}{% endblock %}
+</head>
+<body>
+{% if request.session.user_id %}
+<!-- SIDEBAR -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-text">⬡ DialogueSumm</div>
+    <div class="logo-sub">Cloud Framework v1.0</div>
+  </div>
+
+  {% if request.session.user_id %}
+  <div class="sidebar-user">
+    <div class="user-avatar" style="background: {% if request.session.user_role == 'admin' %}#dc2626{% else %}var(--accent2){% endif %}">
+      {{ request.session.full_name|first|upper }}
+    </div>
+    <div class="user-info">
+      <div class="user-name">{{ request.session.full_name }}</div>
+      <div class="user-role">{{ request.session.user_role }}</div>
+    </div>
+  </div>
+  {% endif %}
+
+  <nav class="sidebar-nav">
+    {% if request.session.user_role == 'admin' %}
+      <div class="nav-section-label">Admin Panel</div>
+      <a href="/admin-dashboard/" class="nav-link {% if request.path == '/admin-dashboard/' %}active{% endif %}">
+        <span class="nav-icon">⊞</span> Overview
+      </a>
+      <a href="/admin/users/" class="nav-link {% if '/admin/users/' in request.path %}active{% endif %}">
+        <span class="nav-icon">◎</span> Users
+      </a>
+      <a href="/admin/activity/" class="nav-link {% if '/admin/activity/' in request.path %}active{% endif %}">
+        <span class="nav-icon">◷</span> Activity Log
+      </a>
+      <a href="/admin/audit-logs/" class="nav-link {% if '/admin/audit-logs/' in request.path %}active{% endif %}">
+        <span class="nav-icon">🔒</span> Audit Logs
+      </a>
+    {% else %}
+      <div class="nav-section-label">Workspace</div>
+      <a href="/dashboard/" class="nav-link {% if request.path == '/dashboard/' %}active{% endif %}">
+        <span class="nav-icon">⊞</span> Dashboard
+      </a>
+      <a href="/upload/" class="nav-link {% if request.path == '/upload/' %}active{% endif %}">
+        <span class="nav-icon">⬆</span> Upload File
+      </a>
+      <a href="/summarize/" class="nav-link {% if request.path == '/summarize/' %}active{% endif %}">
+        <span class="nav-icon">◈</span> Text Summarize
+      </a>
+      <a href="/audio-summarize/" class="nav-link {% if request.path == '/audio-summarize/' %}active{% endif %}">
+        <span class="nav-icon">🎵</span> Audio Summarize
+      </a>
+      <a href="/video-summarize/" class="nav-link {% if request.path == '/video-summarize/' %}active{% endif %}">
+        <span class="nav-icon">🎬</span> Video Summarize
+      </a>
+      <a href="/history/" class="nav-link {% if request.path == '/history/' %}active{% endif %}">
+        <span class="nav-icon">◷</span> Full History
+      </a>
+      <div class="nav-section-label" style="margin-top:8px;">Account</div>
+      <a href="/profile/" class="nav-link {% if request.path == '/profile/' %}active{% endif %}">
+        <span class="nav-icon">◉</span> Profile
+      </a>
+    {% endif %}
+  </nav>
+
+  <!-- Recent History in Sidebar -->
+  {% if request.session.user_role != 'admin' %}
+  <div class="history-section">
+    <div class="nav-section-label">Recent Activity</div>
+    <div id="sidebar-history">
+      {% for item in sidebar_history %}
+      <div class="history-item">
+        <div class="h-name">
+          <span class="history-badge badge-{{ item.action }}">{{ item.action }}</span>
+          {{ item.filename }}
+        </div>
+        <div class="h-meta">{{ item.created_at|date:"M d, H:i" }}</div>
+      </div>
+      {% empty %}
+      <div style="padding: 8px 20px; font-size: 12px; color: var(--text-muted);">No recent activity</div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+</aside>
+
+<!-- MAIN CONTENT -->
+<div class="main-content">
+  <header class="topbar">
+    <div class="topbar-title">{% block page_title %}Dashboard{% endblock %}</div>
+    <div class="topbar-actions">
+      <span class="topbar-time" id="live-clock"></span>
+      <a href="/logout/" class="btn-logout">Sign Out</a>
+    </div>
+  </header>
+
+  <main class="page-body fade-in">
+    {% if messages %}
+      {% for message in messages %}
+      <div class="alert alert-{% if message.tags == 'error' %}error{% else %}success{% endif %}">
+        ⚡ {{ message }}
+      </div>
+      {% endfor %}
+    {% endif %}
+    {% block content %}{% endblock %}
+  </main>
+</div>
+
+{% else %}
+  {% block auth_content %}{% endblock %}
+{% endif %}
+
+<script>
+  // Live clock
+  function updateClock() {
+    const el = document.getElementById('live-clock');
+    if (el) {
+      const now = new Date();
+      el.textContent = now.toLocaleTimeString('en-US', {hour12: false});
+    }
+  }
+  setInterval(updateClock, 1000);
+  updateClock();
+
+  // Auto-refresh sidebar history every 30s
+  {% if request.session.user_id and request.session.user_role != 'admin' %}
+  function refreshHistory() {
+    fetch('/api/history/')
+      .then(r => r.json())
+      .then(data => {
+        const container = document.getElementById('sidebar-history');
+        if (!container) return;
+        if (data.history.length === 0) {
+          container.innerHTML = '<div style="padding:8px 20px;font-size:12px;color:var(--text-muted)">No recent activity</div>';
+          return;
+        }
+        container.innerHTML = data.history.slice(0, 8).map(item => `
+          <div class="history-item">
+            <div class="h-name">
+              <span class="history-badge badge-${item.action}">${item.action}</span>
+              ${item.filename}
+            </div>
+            <div class="h-meta">${new Date(item.created_at).toLocaleDateString()}</div>
+          </div>
+        `).join('');
+      }).catch(() => {});
+  }
+  setInterval(refreshHistory, 30000);
+  {% endif %}
+</script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>

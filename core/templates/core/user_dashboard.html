@@ -1,0 +1,163 @@
+{% extends "core/base.html" %}
+{% block title %}Dashboard — {{ request.session.full_name }}{% endblock %}
+{% block page_title %}User Dashboard{% endblock %}
+
+{% block extra_css %}
+<style>
+  .welcome-banner {
+    background: linear-gradient(135deg, rgba(0,212,170,0.08) 0%, rgba(124,58,237,0.08) 100%);
+    border: 1px solid rgba(0,212,170,0.15);
+    border-radius: 16px;
+    padding: 28px 32px;
+    margin-bottom: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .welcome-text h1 { font-size: 24px; font-weight: 700; color: var(--text-primary); }
+  .welcome-text p { font-size: 14px; color: var(--text-secondary); margin-top: 6px; }
+  .welcome-avatar {
+    width: 60px; height: 60px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    display: flex; align-items: center; justify-content: center;
+    font-size: 24px; font-weight: 700; color: #fff;
+    flex-shrink: 0;
+  }
+  .quick-actions {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-bottom: 28px;
+  }
+  .action-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    text-decoration: none;
+    transition: all 0.2s;
+    display: block;
+  }
+  .action-card:hover {
+    border-color: var(--accent);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0,212,170,0.1);
+  }
+  .action-icon { font-size: 28px; margin-bottom: 12px; display: block; }
+  .action-title { font-weight: 600; font-size: 15px; color: var(--text-primary); }
+  .action-desc { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+
+  .history-table td:first-child { max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .file-hash { font-family: 'Space Mono', monospace; font-size: 11px; color: var(--text-muted); }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Welcome Banner -->
+<div class="welcome-banner">
+  <div class="welcome-text">
+    <h1>Hello, {{ user.profile.full_name|default:user.username }} 👋</h1>
+    <p>Welcome to your Dialogue Summarizer dashboard. Upload dialogues, generate summaries, and track your history.</p>
+  </div>
+  <div class="welcome-avatar">{{ user.profile.full_name|first|upper }}</div>
+</div>
+
+<!-- Stats -->
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="stat-icon">⬆</div>
+    <div class="stat-label">Total Uploads</div>
+    <div class="stat-value">{{ user.stats.total_uploads|default:0 }}</div>
+    <div class="stat-sub">files uploaded</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon">◈</div>
+    <div class="stat-label">Summaries</div>
+    <div class="stat-value">{{ user.stats.total_summaries|default:0 }}</div>
+    <div class="stat-sub">generated</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon">◷</div>
+    <div class="stat-label">History Items</div>
+    <div class="stat-value">{{ total_history }}</div>
+    <div class="stat-sub">total activities</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon">◉</div>
+    <div class="stat-label">Account Since</div>
+    <div class="stat-value" style="font-size:18px;">{{ user.created_at|date:"M Y" }}</div>
+    <div class="stat-sub">member</div>
+  </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="quick-actions">
+  <a href="/upload/" class="action-card">
+    <span class="action-icon">📁</span>
+    <div class="action-title">Upload File</div>
+    <div class="action-desc">Upload .txt, .pdf, .docx, .csv, .json files</div>
+  </a>
+  <a href="/summarize/" class="action-card">
+    <span class="action-icon">🔮</span>
+    <div class="action-title">Summarize Dialogue</div>
+    <div class="action-desc">Paste dialogue text and get AI summary</div>
+  </a>
+  <a href="/history/" class="action-card">
+    <span class="action-icon">📊</span>
+    <div class="action-title">View History</div>
+    <div class="action-desc">Browse all your activity and summaries</div>
+  </a>
+  <a href="/profile/" class="action-card">
+    <span class="action-icon">⚙</span>
+    <div class="action-title">Profile Settings</div>
+    <div class="action-desc">Update your profile information</div>
+  </a>
+</div>
+
+<!-- Recent Activity -->
+<div class="card">
+  <div class="card-header">
+    <div class="card-title">Recent Activity</div>
+    <a href="/history/" class="btn-secondary" style="font-size:12px;padding:6px 14px;">View All</a>
+  </div>
+  {% if history %}
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>File / Content</th>
+          <th>Action</th>
+          <th>Size</th>
+          <th>SHA-256 Hash</th>
+          <th>Date</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in history %}
+        <tr>
+          <td>{{ item.filename }}</td>
+          <td>
+            <span class="history-badge badge-{{ item.action }}" style="display:inline-block;padding:3px 10px;border-radius:100px;font-size:11px;font-weight:600;">
+              {{ item.action|upper }}
+            </span>
+          </td>
+          <td style="color:var(--text-muted);font-size:12px;">
+            {% if item.file_size < 1024 %}{{ item.file_size }}B
+            {% elif item.file_size < 1048576 %}{{ item.file_size|divisibleby:1024 }}KB
+            {% else %}{{ item.file_size|divisibleby:1048576 }}MB{% endif %}
+          </td>
+          <td class="file-hash">{{ item.file_hash|slice:":16" }}...</td>
+          <td style="color:var(--text-muted);font-size:12px;">{{ item.created_at|date:"M d, Y H:i" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div style="text-align:center;padding:40px;color:var(--text-muted);">
+    <div style="font-size:40px;margin-bottom:12px;">◈</div>
+    <p>No activity yet. Start by uploading a file or summarizing a dialogue!</p>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

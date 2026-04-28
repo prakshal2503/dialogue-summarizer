@@ -1,0 +1,55 @@
+{% extends "core/base.html" %}
+{% block title %}Activity Log — Admin{% endblock %}
+{% block page_title %}Activity Log{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Platform Activity Log</h1>
+  <p>All upload and summarization activities across all users.</p>
+</div>
+
+<div class="card">
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Filename</th>
+          <th>Action</th>
+          <th>Size</th>
+          <th>SHA-256 Hash</th>
+          <th>User ID</th>
+          <th>Result Preview</th>
+          <th>Date</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in activity %}
+        <tr>
+          <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ item.filename }}</td>
+          <td>
+            <span class="history-badge badge-{{ item.action }}"
+              style="display:inline-block;padding:3px 8px;border-radius:100px;font-size:10px;font-weight:600;text-transform:uppercase;">
+              {{ item.action }}
+            </span>
+          </td>
+          <td style="font-family:'Space Mono',monospace;font-size:11px;color:var(--text-muted);">
+            {% if item.file_size < 1024 %}{{ item.file_size }}B
+            {% else %}{{ item.file_size }}B{% endif %}
+          </td>
+          <td style="font-family:'Space Mono',monospace;font-size:11px;color:var(--text-muted);">{{ item.file_hash|slice:":12" }}...</td>
+          <td style="font-family:'Space Mono',monospace;font-size:11px;color:var(--text-muted);">{{ item.user_id|slice:":8" }}...</td>
+          <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;color:var(--text-muted);">
+            {{ item.result|default:"-"|slice:":60" }}
+          </td>
+          <td style="font-size:11px;color:var(--text-muted);white-space:nowrap;">{{ item.created_at|date:"M d, Y H:i" }}</td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="7" style="text-align:center;color:var(--text-muted);padding:40px;">No activity recorded yet.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

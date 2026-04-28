@@ -1,0 +1,18 @@
+__pycache__/
+*.pyc
+.env
+venv/
+env/
+*.log
+db.sqlite3
+media/
+staticfiles/
+
+# AI Models too large
+best_model/
+video_summarizer_model/
+audio_summarizer_model/
+meeting_summarizer_model/
+*.safetensors
+*.bin
+*.zip

@@ -1,0 +1,260 @@
+{% extends "core/base.html" %}
+{% block title %}Video Summarizer{% endblock %}
+{% block page_title %}Video Summarizer{% endblock %}
+
+{% block extra_css %}
+<style>
+  .drop-zone {
+    border: 2px dashed var(--border);
+    border-radius: 14px;
+    padding: 52px 24px;
+    text-align: center;
+    cursor: pointer;
+    background: var(--bg-elevated);
+    position: relative;
+    transition: all 0.3s;
+    min-height: 220px;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 12px;
+  }
+  .drop-zone.dragover { border-color: var(--accent); background: var(--accent-glow); }
+  .drop-zone.has-file { border-color: #10b981; background: rgba(16,185,129,0.05); }
+  .drop-icon  { font-size: 56px; opacity: 0.55; }
+  .drop-title { font-size: 17px; font-weight: 600; color: var(--text-primary); }
+  .drop-sub   { font-size: 13px; color: var(--text-muted); }
+  .type-tags  { display:flex; gap:8px; flex-wrap:wrap; justify-content:center; margin-top:6px; }
+  .type-tag   { padding:3px 10px; border-radius:100px; font-size:11px; font-family:'Space Mono',monospace;
+                background:rgba(0,212,170,0.1); border:1px solid rgba(0,212,170,0.2); color:var(--accent); }
+  .file-info  { display:none; margin-top:14px; padding:12px 16px;
+                background:var(--bg-card); border:1px solid var(--border); border-radius:10px;
+                align-items:center; gap:12px; }
+  .file-info.show { display:flex; }
+  .file-info .fi-name { font-weight:600; font-size:14px; color:var(--text-primary); }
+  .file-info .fi-size { font-size:12px; color:var(--text-muted); font-family:'Space Mono',monospace; }
+
+  .pipeline-steps {
+    display:flex; gap:0; margin-bottom:20px; align-items:center;
+    background:var(--bg-elevated); border:1px solid var(--border);
+    border-radius:10px; padding:12px 16px;
+  }
+  .pipe-step { font-size:12px; color:var(--text-secondary); flex:1; text-align:center; }
+  .pipe-step strong { display:block; font-size:13px; color:var(--text-primary); margin-bottom:2px; }
+  .pipe-arrow { color:var(--text-muted); font-size:16px; padding:0 8px; }
+
+  .result-box {
+    background: rgba(0,212,170,0.05);
+    border: 1px solid rgba(0,212,170,0.2);
+    border-radius: 12px; padding: 22px; margin-top: 20px;
+    animation: fadeIn 0.4s ease;
+  }
+  .result-label { font-family:'Space Mono',monospace; font-size:10px;
+                  color:var(--accent); text-transform:uppercase; letter-spacing:.1em; margin-bottom:10px; }
+  .result-text  { font-size:15px; line-height:1.9; color:var(--text-primary); white-space:pre-wrap; }
+  .transcript-box { background:rgba(124,58,237,0.05); border:1px solid rgba(124,58,237,0.2);
+                    border-radius:12px; padding:18px; margin-top:16px; }
+  .transcript-text { font-size:13px; line-height:1.8; color:var(--text-secondary);
+                     white-space:pre-wrap; max-height:200px; overflow-y:auto; }
+  .stats-row  { display:flex; gap:16px; flex-wrap:wrap; margin-top:16px; }
+  .stat-pill  { padding:5px 14px; border-radius:100px; font-size:12px; font-family:'Space Mono',monospace;
+                background:var(--bg-elevated); border:1px solid var(--border); color:var(--text-secondary); }
+  .result-actions { display:flex; gap:8px; margin-top:16px; flex-wrap:wrap; }
+
+  .processing-overlay { display:none; position:fixed; inset:0;
+    background:rgba(0,0,0,0.6); z-index:500;
+    align-items:center; justify-content:center; flex-direction:column; gap:16px; }
+  .processing-overlay.show { display:flex; }
+  .spinner { width:48px; height:48px; border:3px solid var(--border);
+             border-top-color:var(--accent); border-radius:50%; animation:spin 0.8s linear infinite; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  .processing-text { color:var(--text-primary); font-size:15px; font-weight:600; }
+  .processing-sub  { color:var(--text-muted); font-size:12px; text-align:center; max-width:340px; }
+  @keyframes fadeIn { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Video Summarizer</h1>
+  <p>Upload a video or audio file — FFmpeg extracts audio, Whisper transcribes, T5 summarizes.</p>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 300px;gap:24px;">
+  <div>
+    <div class="card">
+
+      <!-- Pipeline indicator -->
+      <div class="pipeline-steps">
+        <div class="pipe-step"><strong>🎬 Upload</strong>video / audio</div>
+        <div class="pipe-arrow">→</div>
+        <div class="pipe-step"><strong>⚙ FFmpeg</strong>extract audio</div>
+        <div class="pipe-arrow">→</div>
+        <div class="pipe-step"><strong>👂 Whisper</strong>transcribe</div>
+        <div class="pipe-arrow">→</div>
+        <div class="pipe-step"><strong>◈ T5</strong>summarize</div>
+      </div>
+
+      {% if error %}
+      <div class="alert alert-error">⚠ {{ error }}</div>
+      {% endif %}
+
+      <form method="POST" enctype="multipart/form-data" id="video-form">
+        {% csrf_token %}
+
+        <div class="drop-zone" id="drop-zone">
+          <div class="drop-icon" id="drop-icon">🎬</div>
+          <div class="drop-title" id="drop-title">Drop video or audio file here or click to browse</div>
+          <div class="drop-sub" id="drop-sub">FFmpeg → Whisper → T5 pipeline</div>
+          <div class="type-tags">
+            <span class="type-tag">MP4</span>
+            <span class="type-tag">AVI</span>
+            <span class="type-tag">MOV</span>
+            <span class="type-tag">MKV</span>
+            <span class="type-tag">WEBM</span>
+            <span class="type-tag">MP3</span>
+            <span class="type-tag">WAV</span>
+            <span class="type-tag">M4A</span>
+          </div>
+          <input type="file" name="video_file" id="file-input"
+                 accept=".mp4,.avi,.mov,.mkv,.webm,.flv,.wmv,.mp3,.wav,.m4a,.flac,.ogg"
+                 style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;">
+        </div>
+
+        <div class="file-info" id="file-info">
+          <span style="font-size:28px;" id="fi-icon">🎬</span>
+          <div>
+            <div class="fi-name" id="fi-name"></div>
+            <div class="fi-size" id="fi-size"></div>
+          </div>
+          <span style="margin-left:auto;color:#10b981;font-size:22px;">✓</span>
+        </div>
+
+        <button type="submit" class="btn-primary" style="margin-top:18px;" id="submit-btn">
+          🎬 Extract &amp; Summarize
+        </button>
+      </form>
+
+      {% if result and result.success %}
+      <div class="result-box">
+        <div class="result-label">◈ AI Summary</div>
+        <div class="result-text" id="summary-text">{{ result.summary }}</div>
+        <div class="stats-row">
+          <span class="stat-pill">{{ result.word_count }} words transcribed</span>
+          <span class="stat-pill">{{ result.compression }} compressed</span>
+        </div>
+        <div class="result-actions">
+          <button onclick="copySummary()" class="btn-secondary" style="font-size:12px;padding:7px 16px;">
+            📋 Copy Summary
+          </button>
+          <button onclick="downloadSummary()" class="btn-secondary" style="font-size:12px;padding:7px 16px;">
+            ⬇ Download .txt
+          </button>
+        </div>
+      </div>
+
+      <div class="transcript-box">
+        <div class="result-label" style="color:#a78bfa;">📝 Full Transcript</div>
+        <div class="transcript-text">{{ result.transcript }}</div>
+      </div>
+      {% endif %}
+
+    </div>
+  </div>
+
+  <!-- Sidebar -->
+  <div>
+    <div class="card">
+      <div class="card-title" style="margin-bottom:14px;">How It Works</div>
+      <div style="font-size:13px;color:var(--text-secondary);line-height:2.1;">
+        <p>🎬 <strong>Upload video</strong> — MP4, AVI, MOV, MKV...</p>
+        <p>⚙ <strong>FFmpeg</strong> — strips audio track</p>
+        <p>👂 <strong>Whisper</strong> — speech to text</p>
+        <p>◈ <strong>Your T5</strong> — summarizes transcript</p>
+        <p>📋 <strong>Get summary</strong> — copy or download</p>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="margin-bottom:10px;">⚠ Requirements</div>
+      <div style="font-size:12px;color:var(--text-muted);line-height:1.9;">
+        FFmpeg must be installed:<br>
+        <code style="background:var(--bg-elevated);padding:2px 6px;border-radius:4px;color:var(--accent);font-size:11px;">
+          winget install Gyan.FFmpeg
+        </code>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="margin-bottom:12px;">Recent Videos</div>
+      {% for item in history %}{% if item.action == 'video_summarize' %}
+      <div style="padding:8px 0;border-bottom:1px solid var(--border);">
+        <div style="font-size:12px;color:var(--text-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">🎬 {{ item.filename }}</div>
+        <div style="font-size:10px;color:var(--text-muted);margin-top:2px;">{{ item.created_at|date:"M d, H:i" }}</div>
+      </div>
+      {% endif %}{% empty %}
+      <p style="font-size:12px;color:var(--text-muted);">No video summaries yet.</p>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<!-- Processing overlay -->
+<div class="processing-overlay" id="processing-overlay">
+  <div class="spinner"></div>
+  <div class="processing-text">Processing video...</div>
+  <div class="processing-sub" id="proc-sub">Extracting audio with FFmpeg → Transcribing with Whisper → Summarizing with T5</div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  const fileInput = document.getElementById('file-input');
+  const dropZone  = document.getElementById('drop-zone');
+  const fileInfo  = document.getElementById('file-info');
+
+  function fmtBytes(b) {
+    if (b < 1024) return b + ' B';
+    if (b < 1024*1024) return (b/1024).toFixed(1) + ' KB';
+    return (b/1024/1024).toFixed(1) + ' MB';
+  }
+  function fileIcon(name) {
+    const ext = name.split('.').pop().toLowerCase();
+    const vid = ['mp4','avi','mov','mkv','webm','flv','wmv'];
+    return vid.includes(ext) ? '🎬' : '🎵';
+  }
+
+  fileInput.addEventListener('change', () => {
+    const f = fileInput.files[0];
+    if (!f) return;
+    const icon = fileIcon(f.name);
+    document.getElementById('fi-icon').textContent = icon;
+    document.getElementById('fi-name').textContent = f.name;
+    document.getElementById('fi-size').textContent = fmtBytes(f.size);
+    fileInfo.classList.add('show');
+    dropZone.classList.add('has-file');
+    document.getElementById('drop-icon').textContent = icon;
+    document.getElementById('drop-title').textContent = f.name;
+    document.getElementById('drop-sub').textContent = fmtBytes(f.size) + ' — ready';
+  });
+
+  ['dragover','dragenter'].forEach(e => dropZone.addEventListener(e, ev => { ev.preventDefault(); dropZone.classList.add('dragover'); }));
+  ['dragleave','drop'].forEach(e => dropZone.addEventListener(e, ev => { ev.preventDefault(); dropZone.classList.remove('dragover'); }));
+  dropZone.addEventListener('drop', ev => {
+    if (ev.dataTransfer.files.length) { fileInput.files = ev.dataTransfer.files; fileInput.dispatchEvent(new Event('change')); }
+  });
+
+  document.getElementById('video-form').addEventListener('submit', function() {
+    document.getElementById('processing-overlay').classList.add('show');
+    document.getElementById('submit-btn').disabled = true;
+    const f = fileInput.files[0];
+    if (f) document.getElementById('proc-sub').textContent =
+      '"' + f.name + '" → FFmpeg extract audio → Whisper transcribe → T5 summarize';
+  });
+
+  function copySummary() {
+    const text = document.getElementById('summary-text')?.textContent;
+    if (text) navigator.clipboard.writeText(text).then(() => { event.target.textContent = '✓ Copied!'; setTimeout(() => event.target.textContent = '📋 Copy Summary', 2000); });
+  }
+  function downloadSummary() {
+    const text = document.getElementById('summary-text')?.textContent;
+    if (text) { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text],{type:'text/plain'})); a.download = 'video_summary_' + new Date().toISOString().slice(0,10) + '.txt'; a.click(); }
+  }
+</script>
+{% endblock %}

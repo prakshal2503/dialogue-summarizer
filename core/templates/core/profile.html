@@ -1,0 +1,190 @@
+{% extends "core/base.html" %}
+{% block title %}Profile Settings{% endblock %}
+{% block page_title %}Profile Settings{% endblock %}
+
+{% block extra_css %}
+<style>
+  .delete-account-zone {
+    background: rgba(239,68,68,0.04);
+    border: 1px solid rgba(239,68,68,0.25);
+    border-radius: 12px;
+    padding: 24px;
+    margin-top: 24px;
+  }
+  .delete-account-zone h3 {
+    color: var(--danger);
+    font-size: 15px;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+  .delete-account-zone p {
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.7;
+    margin-bottom: 16px;
+  }
+  .modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.8); z-index: 1000;
+    align-items: center; justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--bg-card); border: 1px solid rgba(239,68,68,0.3);
+    border-radius: 16px; padding: 32px; width: 100%; max-width: 440px;
+    animation: popIn 0.2s ease;
+  }
+  .modal h3 { font-size: 18px; font-weight: 700; color: var(--danger); margin-bottom: 10px; }
+  .modal p { font-size: 13px; color: var(--text-secondary); line-height: 1.7; margin-bottom: 16px; }
+  .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
+  @keyframes popIn { from { opacity:0; transform:scale(0.95); } to { opacity:1; transform:scale(1); } }
+  .warning-list { background: rgba(239,68,68,0.07); border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; }
+  .warning-list li { font-size: 13px; color: #fca5a5; margin: 4px 0; list-style: none; }
+  .warning-list li::before { content: "✗ "; }
+  .safe-list li::before { content: "✓ "; color: var(--success) !important; }
+  .safe-list li { color: #6ee7b7 !important; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Profile Settings</h1>
+  <p>Update your personal information and manage your account.</p>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 300px;gap:24px;">
+  <div>
+    <!-- Edit Profile Card -->
+    <div class="card">
+      {% if error %}<div class="alert alert-error">⚠ {{ error }}</div>{% endif %}
+      {% if success_msg %}<div class="alert alert-success">✓ {{ success_msg }}</div>{% endif %}
+
+      <div class="card-title" style="margin-bottom:20px;">Edit Profile</div>
+      <form method="POST" action="/profile/">
+        {% csrf_token %}
+        <div class="form-group">
+          <label class="form-label">Full Name</label>
+          <input type="text" name="full_name" class="form-input"
+                 value="{{ form.full_name.value|default:user.profile.full_name }}"
+                 placeholder="Your full name" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Username</label>
+          <input type="text" class="form-input" value="{{ user.username }}" disabled style="opacity:0.5;cursor:not-allowed;">
+          <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Username cannot be changed.</div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Email</label>
+          <input type="email" class="form-input" value="{{ user.email }}" disabled style="opacity:0.5;cursor:not-allowed;">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Bio</label>
+          <textarea name="bio" class="form-input" rows="3"
+                    placeholder="Tell us about yourself...">{{ form.bio.value|default:user.profile.bio }}</textarea>
+        </div>
+        <button type="submit" class="btn-primary">Save Changes</button>
+      </form>
+    </div>
+
+    <!-- Delete Account Zone -->
+    <div class="delete-account-zone">
+      <h3>⚠ Delete Account</h3>
+      <p>Permanently delete your account and all your uploaded files and history. This action <strong>cannot be undone</strong>.</p>
+
+      <ul class="warning-list">
+        <li>Your account will be permanently removed</li>
+        <li>All your upload history will be deleted</li>
+        <li>You will be immediately signed out</li>
+      </ul>
+
+      <div style="background:rgba(16,185,129,0.06);border:1px solid rgba(16,185,129,0.2);border-radius:8px;padding:12px 16px;margin-bottom:16px;">
+        <ul class="warning-list safe-list">
+          <li>Security audit log is preserved (admin only)</li>
+          <li>Your account details snapshot is kept for compliance</li>
+        </ul>
+      </div>
+
+      <button class="btn-danger" style="padding:10px 20px;font-size:13px;"
+              onclick="document.getElementById('delete-modal').classList.add('open')">
+        Delete My Account
+      </button>
+    </div>
+  </div>
+
+  <!-- Right sidebar -->
+  <div>
+    <div class="card" style="text-align:center;">
+      <div style="width:80px;height:80px;border-radius:50%;
+                  background:linear-gradient(135deg,var(--accent),var(--accent2));
+                  display:flex;align-items:center;justify-content:center;
+                  font-size:32px;font-weight:700;color:#fff;margin:0 auto 16px;">
+        {{ user.profile.full_name|first|upper }}
+      </div>
+      <div style="font-weight:700;font-size:18px;color:var(--text-primary);">{{ user.profile.full_name }}</div>
+      <div style="font-size:13px;color:var(--text-muted);margin-top:4px;">@{{ user.username }}</div>
+      <div style="font-size:12px;color:var(--accent);font-family:'Space Mono',monospace;margin-top:8px;text-transform:uppercase;letter-spacing:0.08em;">{{ user.role }}</div>
+    </div>
+
+    <div class="card">
+      <div class="card-title" style="margin-bottom:16px;">Account Stats</div>
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <div style="display:flex;justify-content:space-between;">
+          <span style="font-size:13px;color:var(--text-secondary);">Member Since</span>
+          <span style="font-family:'Space Mono',monospace;font-size:12px;color:var(--text-primary);">{{ user.created_at|date:"M d, Y" }}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;">
+          <span style="font-size:13px;color:var(--text-secondary);">Total Uploads</span>
+          <span style="font-family:'Space Mono',monospace;font-size:12px;color:var(--accent);">{{ user.stats.total_uploads|default:0 }}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;">
+          <span style="font-size:13px;color:var(--text-secondary);">Summaries</span>
+          <span style="font-family:'Space Mono',monospace;font-size:12px;color:var(--accent);">{{ user.stats.total_summaries|default:0 }}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;">
+          <span style="font-size:13px;color:var(--text-secondary);">Status</span>
+          <span class="status-badge status-active">● Active</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title" style="margin-bottom:12px;">Quick Links</div>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <a href="/history/" class="btn-secondary" style="text-align:center;font-size:13px;">◷ View History</a>
+        <a href="/upload/" class="btn-secondary" style="text-align:center;font-size:13px;">⬆ Upload File</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Delete Account Modal -->
+<div class="modal-overlay" id="delete-modal">
+  <div class="modal">
+    <h3>⚠ Delete Your Account</h3>
+    <p>This is <strong>permanent and irreversible</strong>. To confirm, enter your username and password below.</p>
+
+    <form method="POST" action="/account/delete/">
+      {% csrf_token %}
+      <div class="form-group">
+        <label class="form-label">Type your username to confirm</label>
+        <input type="text" name="confirm_delete" class="form-input"
+               placeholder="Type: {{ user.username }}" autocomplete="off" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Enter your password</label>
+        <input type="password" name="password" class="form-input"
+               placeholder="Your current password" required>
+      </div>
+      <div class="modal-actions">
+        <button type="submit" class="btn-danger" style="flex:1;padding:11px;font-size:14px;">
+          Permanently Delete
+        </button>
+        <button type="button" class="btn-secondary" style="flex:1;"
+                onclick="document.getElementById('delete-modal').classList.remove('open')">
+          Cancel
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,154 @@
+{% extends "core/base.html" %}
+{% block title %}Activity History{% endblock %}
+{% block page_title %}Activity History{% endblock %}
+
+{% block extra_css %}
+<style>
+  .danger-zone {
+    background: rgba(239,68,68,0.05);
+    border: 1px solid rgba(239,68,68,0.2);
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+  }
+  .danger-zone p { font-size: 13px; color: var(--text-secondary); margin-top: 4px; }
+  .modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.75); z-index: 1000;
+    align-items: center; justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 16px; padding: 32px; width: 100%; max-width: 420px;
+    animation: popIn 0.2s ease;
+  }
+  .modal h3 { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
+  .modal p { font-size: 14px; color: var(--text-secondary); margin-bottom: 20px; line-height: 1.7; }
+  .modal-actions { display: flex; gap: 10px; }
+  @keyframes popIn { from { opacity:0; transform:scale(0.95); } to { opacity:1; transform:scale(1); } }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Activity History <span style="font-size:16px;color:var(--text-muted);font-weight:400;">({{ total }})</span></h1>
+  <p>All your uploads and summaries. Delete individual items or clear everything.</p>
+</div>
+
+{% if history %}
+<div class="danger-zone">
+  <div>
+    <strong style="color:var(--danger);">⚠ Clear All History</strong>
+    <p>Removes all {{ total }} visible items. A permanent security audit log is kept for compliance.</p>
+  </div>
+  <button class="btn-danger" onclick="document.getElementById('clear-modal').classList.add('open')"
+          style="white-space:nowrap;padding:9px 18px;font-size:13px;">
+    🗑 Clear All
+  </button>
+</div>
+{% endif %}
+
+<div class="card">
+  <div class="card-header">
+    <div class="card-title">{{ total }} Total Activities</div>
+  </div>
+
+  {% if history %}
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Filename</th>
+          <th>Action</th>
+          <th>Size</th>
+          <th>SHA-256 Hash</th>
+          <th>Result</th>
+          <th>Date</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in history %}
+        <tr>
+          <td style="font-weight:500;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ item.filename }}</td>
+          <td>
+            <span class="history-badge badge-{{ item.action }}"
+              style="display:inline-block;padding:3px 10px;border-radius:100px;font-size:11px;font-weight:600;text-transform:uppercase;">
+              {{ item.action }}
+            </span>
+          </td>
+          <td style="font-family:'Space Mono',monospace;font-size:11px;color:var(--text-muted);">{{ item.file_size }}B</td>
+          <td title="{{ item.file_hash }}">
+            <div style="font-family:'Space Mono',monospace;font-size:10px;color:var(--text-muted);
+                        max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+              {{ item.file_hash }}
+            </div>
+          </td>
+          <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+                     font-size:12px;color:var(--text-muted);">
+            {{ item.result|default:"-"|slice:":60" }}
+          </td>
+          <td style="font-size:11px;color:var(--text-muted);white-space:nowrap;">{{ item.created_at|date:"M d, Y H:i" }}</td>
+          <td>
+            <form method="POST" action="/history/{{ item.id }}/delete/"
+                  onsubmit="return confirm('Delete this item from your history?');">
+              {% csrf_token %}
+              <input type="hidden" name="next" value="/history/?page={{ page }}">
+              <button type="submit" class="btn-danger" style="padding:4px 10px;font-size:11px;">🗑 Delete</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if total_pages > 1 %}
+  <div style="display:flex;gap:8px;justify-content:center;margin-top:20px;padding-top:20px;border-top:1px solid var(--border);">
+    {% if page > 1 %}
+    <a href="?page={{ page|add:'-1' }}" style="padding:6px 12px;border-radius:6px;font-size:13px;text-decoration:none;background:var(--bg-elevated);color:var(--text-secondary);border:1px solid var(--border);">← Prev</a>
+    {% endif %}
+    <span style="padding:6px 14px;border-radius:6px;font-size:13px;background:var(--accent);color:#000;font-weight:600;">{{ page }} / {{ total_pages }}</span>
+    {% if page < total_pages %}
+    <a href="?page={{ page|add:'1' }}" style="padding:6px 12px;border-radius:6px;font-size:13px;text-decoration:none;background:var(--bg-elevated);color:var(--text-secondary);border:1px solid var(--border);">Next →</a>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {% else %}
+  <div style="text-align:center;padding:60px;color:var(--text-muted);">
+    <div style="font-size:40px;margin-bottom:12px;">◷</div>
+    <p>No activity history yet.</p>
+    <a href="/upload/" class="btn-primary" style="display:inline-block;margin-top:16px;width:auto;padding:10px 24px;">Upload your first file</a>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Clear All Modal -->
+<div class="modal-overlay" id="clear-modal">
+  <div class="modal">
+    <h3>🗑 Clear All History?</h3>
+    <p>
+      This removes <strong style="color:var(--danger);">all {{ total }} items</strong> from your visible history.<br><br>
+      ⚠ A <strong>permanent security audit log</strong> is kept by the system for compliance (visible only to admin). Your account data is not affected.
+    </p>
+    <div class="modal-actions">
+      <form method="POST" action="/history/clear/" style="flex:1;">
+        {% csrf_token %}
+        <button type="submit" class="btn-danger" style="width:100%;padding:11px;font-size:14px;">
+          Yes, Clear All
+        </button>
+      </form>
+      <button class="btn-secondary" style="flex:1;"
+              onclick="document.getElementById('clear-modal').classList.remove('open')">
+        Cancel
+      </button>
+    </div>
+  </div>
+</div>
+{% endblock %}
