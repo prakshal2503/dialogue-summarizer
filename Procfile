@@ -1,0 +1,1 @@
+web: gunicorn dialogue_summarizer.wsgi --log-file -
