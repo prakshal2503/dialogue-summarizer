@@ -48,16 +48,9 @@ def load_model():
 
         # Resolve model path — env var overrides the default
         base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        model_path = os.environ.get('MODEL_PATH', os.path.join(base_dir, 'best_model'))
+        model_path = os.environ.get('MODEL_PATH', 'Prakshal2503/best-model')
 
-        if not os.path.isdir(model_path):
-            _load_error = (
-                f"Model directory not found: '{model_path}'. "
-                "Place your fine-tuned T5 files inside a folder called 'best_model' "
-                "next to manage.py, or set the MODEL_PATH environment variable."
-            )
-            logger.warning(_load_error)
-            return
+        
 
         logger.info(f"Loading T5 model from {model_path} ...")
         _device = 'cuda' if torch.cuda.is_available() else 'cpu'

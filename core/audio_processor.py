@@ -21,25 +21,7 @@ def load_model():
             from transformers import T5Tokenizer, T5ForConditionalGeneration
 
             base_dir   = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-            model_path = os.environ.get(
-                'AUDIO_MODEL_PATH',
-                os.path.join(base_dir, 'audio_summarizer_model')
-            )
-            if not os.path.isdir(model_path):
-                try:
-                    from django.conf import settings
-                    model_path = getattr(settings, 'AUDIO_MODEL_PATH', model_path)
-                except Exception:
-                    pass
-            if not os.path.isdir(model_path):
-                _load_error = (
-                    f"Audio model directory not found: '{model_path}'. "
-                    "Create folder 'audio_summarizer_model/' next to manage.py "
-                    "or set AUDIO_MODEL_PATH env variable."
-                )
-                logger.warning(_load_error)
-                return
-
+            model_path = os.environ.get('AUDIO_MODEL_PATH', 'Prakshal2503/audio-summarizer-model')
             device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
             _tokenizer     = T5Tokenizer.from_pretrained(model_path)
