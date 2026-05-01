@@ -1,3 +1,13 @@
+---
+title: Dialogue Summarizer
+emoji: 🎙️
+colorFrom: blue
+colorTo: purple
+sdk: docker
+pinned: false
+---
+
+
 # ⬡ Dialogue Summarizer — Cloud Framework
 ### A Django + MongoDB Web Application
 

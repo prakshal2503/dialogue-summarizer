@@ -56,7 +56,7 @@ TEMPLATES = [
 WSGI_APPLICATION = 'dialogue_summarizer.wsgi.application'
 
 # ── MongoDB Configuration ────────────────────────────────────────────────────
-MONGODB_URI      = os.environ.get('MONGODB_URI', 'mongodb+srv://prakshal_2503:prakshal_2503@prakshaldb.xze87jy.mongodb.net/dialogue_summarizer_db?retryWrites=true&w=majority')
+MONGODB_URI = os.environ.get('MONGODB_URI', 'mongodb://localhost:27017/')
 MONGODB_DATABASE = os.environ.get('MONGODB_DATABASE', 'dialogue_summarizer_db')
 
 # ── Session Configuration ────────────────────────────────────────────────────
