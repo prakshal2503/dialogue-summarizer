@@ -14,6 +14,10 @@ SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-change-this-in-produc
 DEBUG      = os.environ.get('DEBUG', 'False') == 'True'
 ALLOWED_HOSTS = ['*']
 
+CSRF_TRUSTED_ORIGINS = [
+    'https://prakshal2503-dialogue-summarizer.hf.space',
+]
+
 # Application definition
 INSTALLED_APPS = [
     'django.contrib.contenttypes',
